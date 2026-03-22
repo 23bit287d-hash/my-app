@@ -1,7 +1,10 @@
+import './App.css';
 function App() {
   return (
-    <h1><i>Hello World React working!</i></h1>
-  )
+    <div>
+      <h2>Hello this is my component</h2>
+    </div>
+  );
 }
 
 export default App;
