@@ -1,8 +1,10 @@
-import './App.css';
+import React from "react";
+import Counter from "./counter";
+
 function App() {
   return (
-    <div>
-      <h2>Hello this is my component</h2>
+    <div className="app-wrapper">
+      <Counter />
     </div>
   );
 }
