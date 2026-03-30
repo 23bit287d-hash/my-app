@@ -1,103 +1,139 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import './App.css';
 
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [time, setTime] = useState(new Date().toLocaleTimeString());
+const API_URL = 'https://jsonplaceholder.typicode.com/users';
 
-  // Real-time clock for the "Live" feel
+function App() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredQuery = useDeferredValue(searchQuery);
+
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
-    return () => clearInterval(timer);
+    let cancelled = false;
+
+    async function loadUsers() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setUsers(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (!cancelled) setError(e.message || 'Could not load users.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadUsers();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (username.trim()) setIsLoggedIn(true);
-  };
+  const filteredUsers = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => u.name.toLowerCase().includes(q));
+  }, [users, deferredQuery]);
+
+  const isStale = searchQuery !== deferredQuery;
+
+  const handleClear = () => setSearchQuery('');
 
   return (
-    <div className="app-shell">
-      {/* Background Particles */}
-      <div className="bg-particles">
-        <div className="particle p1"></div>
-        <div className="particle p2"></div>
-        <div className="particle p3"></div>
+    <div className="directory-page">
+      <div className="cartoon-bg" aria-hidden="true">
+        <span className="blob blob-1" />
+        <span className="blob blob-2" />
+        <span className="blob blob-3" />
+        <span className="sparkle s1" />
+        <span className="sparkle s2" />
+        <span className="sparkle s3" />
       </div>
 
-      <nav className="navbar">
-        <div className="nav-content">
-          <div className="nav-left">
-            <h1 className="nav-logo">EXP<span className="highlight">08</span></h1>
-            <span className="divider">|</span>
-            <span className="live-clock">{time}</span>
-          </div>
-          {isLoggedIn && (
-            <button className="logout-link" onClick={() => setIsLoggedIn(false)}>
-              ABORT SESSION
-            </button>
-          )}
+      <header className="page-header">
+        <h1 className="directory-title">User Directory</h1>
+        <p className="directory-subtitle">Meet the crew — browse &amp; search with style</p>
+      </header>
+
+      <section className="controls" aria-label="Search users">
+        <div className="search-row">
+          <label htmlFor="user-search" className="visually-hidden">
+            Search users by name
+          </label>
+          <input
+            id="user-search"
+            type="search"
+            className="search-input"
+            placeholder="Search by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            autoComplete="off"
+          />
+          <button type="button" className="btn-clear" onClick={handleClear}>
+            Clear Filter
+          </button>
         </div>
-      </nav>
+        <p className={`status-line ${isStale ? 'status-stale' : ''}`}>
+          {loading
+            ? 'Loading users…'
+            : error
+              ? `Something went wrong: ${error}`
+              : `Showing ${filteredUsers.length} user${filteredUsers.length === 1 ? '' : 's'}${
+                  deferredQuery.trim() ? ` for “${deferredQuery.trim()}”` : ''
+                }`}
+        </p>
+      </section>
 
-      <main className="main-content">
-        {isLoggedIn ? (
-          <div className="glass-card welcome-view fade-in">
-            <div className="scanline"></div>
-            <div className="status-container">
-              <span className="pulse-dot"></span>
-              <span className="status-text">CORE UPLINK ACTIVE</span>
-            </div>
-            
-            <h1 className="user-greet">Hello, {username}</h1>
-            
-            <div className="data-grid">
-              <div className="data-item">
-                <label>ENCRYPTION</label>
-                <p>256-BIT AES</p>
-              </div>
-              <div className="data-item">
-                <label>LATENCY</label>
-                <p>14ms</p>
-              </div>
-            </div>
+      <main className="main-grid-wrap">
+        {loading && (
+          <div className="skeleton-grid" aria-busy="true">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="skeleton-card" />
+            ))}
+          </div>
+        )}
 
-            <div className="system-log">
-              <code>&gt; Initializing Experiment 08...</code>
-              <code>&gt; Loading User Preferences...</code>
-              <code>&gt; System Stable. Welcome.</code>
-            </div>
+        {!loading && !error && filteredUsers.length === 0 && (
+          <div className="empty-state">
+            <span className="empty-emoji" aria-hidden="true">
+              🔭
+            </span>
+            <p>No users match that name.</p>
+            <button type="button" className="btn-clear ghost" onClick={handleClear}>
+              Clear search
+            </button>
           </div>
-        ) : (
-          <div className="glass-card login-view scale-up">
-             <div className="scanline"></div>
-            <form onSubmit={handleLogin}>
-              <h2 className="glitch-text">AUTHENTICATE</h2>
-              <div className="input-group">
-                <input 
-                  type="text" 
-                  required 
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-                <label>IDENTITY</label>
-              </div>
-              <div className="input-group">
-                <input 
-                  type="password" 
-                  required 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <label>ACCESS KEY</label>
-              </div>
-              <button type="submit" className="btn-primary">
-                START UPLINK
-              </button>
-            </form>
-          </div>
+        )}
+
+        {!loading && !error && filteredUsers.length > 0 && (
+          <ul className="user-grid">
+            {filteredUsers.map((user, index) => (
+              <li
+                key={user.id}
+                className="user-card-wrap"
+                style={{ '--stagger': `${Math.min(index, 12) * 45}ms` }}
+              >
+                <article className="user-card">
+                  <h2 className="user-name">{user.name}</h2>
+                  <p className="user-line">
+                    <span className="label">Email:</span>{' '}
+                    <a className="user-link" href={`mailto:${user.email}`}>
+                      {user.email}
+                    </a>
+                  </p>
+                  <p className="user-line">
+                    <span className="label">Company:</span>{' '}
+                    <span>{user.company?.name ?? '—'}</span>
+                  </p>
+                </article>
+              </li>
+            ))}
+          </ul>
         )}
       </main>
     </div>
